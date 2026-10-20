@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Pixel Art Suite Studio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0d1117; color: #c9d1d9; font-family: system-ui, sans-serif; height: 100vh; display: flex; overflow: hidden; }
+        .sidebar { width: 280px; min-width: 280px; background-color: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; }
+        h2 { font-size: 15px; color: #58a6ff; text-transform: uppercase; }
+        h3 { font-size: 11px; color: #8b949e; text-transform: uppercase; border-bottom: 1px solid #30363d; padding-bottom: 2px; }
+        .group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 11px; color: #8b949e; }
+        input[type="number"], input[type="range"] { background: #21262d; border: 1px solid #30363d; color: #fff; padding: 6px; border-radius: 6px; width: 100%; }
+        button { background: #238636; border: 1px solid rgba(240,246,252,0.1); color: #fff; padding: 7px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; }
+        button:hover { background: #2ea043; }
+        button.sec { background: #21262d; border-color: #30363d; }
+        button.sec:hover { background: #30363d; }
+        button.active { background: #1f6feb; border-color: #58a6ff; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .palette { display: flex; flex-wrap: wrap; gap: 4px; }
+        .swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid #30363d; cursor: pointer; }
+        .viewport { flex-grow: 1; background-color: #090c10; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 20px; }
+        
+        .canvas-card {
+            position: relative; width: 750px; height: 750px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            background-color: #21262d; transform-origin: center center; transition: transform 0.05s ease-out;
+            background-image: linear-gradient(45deg, #161b22 25%, transparent 25%), linear-gradient(-45deg, #161b22 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #161b22 75%), linear-gradient(-45deg, transparent 75%, #161b22 75%);
+            background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; image-rendering: pixelated; cursor: crosshair; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div><h2>Pixel Studio Pro</h2><p style="font-size:10px; color:#8b949e;">Symmetry Mirror Engine</p></div>
+        <div class="group">
+            <h3>Canvas Resolution</h3>
+            <div style="display:flex; gap:4px;"><input type="number" id="gIn" value="100" min="10" max="500"><button onclick="changeRes()">Set</button></div>
+        </div>
+        <div class="group">
+            <h3>Tools Suite</h3>
+            <div class="grid2">
+                <button id="b-draw" class="active" onclick="setT('draw')">✏️ Pencil</button>
+                <button id="b-erase" onclick="setT('erase')">🧽 Eraser</button>
+                <button id="b-bucket" onclick="setT('bucket')">🪣 Bucket</button>
+                <button id="b-picker" onclick="setT('picker')">🧪 Picker</button>
+            </div>
+            <div class="grid2" style="margin-top:2px;">
+                <button id="b-circle" onclick="setT('circle')">⭕ Circle</button>
+                <button id="b-rect" onclick="setT('rect')">⬜ Rect</button>
+            </div>
+            <div style="margin-top:4px;">
+                <label id="sizeLabel">Brush/Eraser Size: 1px</label>
+                <input type="range" id="brushSizeInput" min="1" max="10" value="1" oninput="updateBrushSizeLabel()">
+            </div>
+        </div>
+        <!-- New Component: Mirror Symmetry Selection Bars -->
+        <div class="group">
+            <h3>Symmetry Mirror</h3>
+            <div class="grid2">
+                <button id="b-sym-none" class="active" onclick="setSym('none')">❌ None</button>
+                <button id="b-sym-vert" onclick="setSym('vert')">↕️ Vertical</button>
+            </div>
+            <div class="grid2" style="margin-top:2px;">
+                <button id="b-sym-horiz" onclick="setSym('horiz')">↔️ Horiz</button>
+                <button id="b-sym-both" onclick="setSym('both')">🔄 Both Axes</button>
+            </div>
+        </div>
+        <div class="group">
+            <h3>Actions & History</h3>
+            <div class="grid2"><button class="sec" onclick="undo()">↩️ Undo (Ctrl+Z)</button><button class="sec" onclick="redo()">↪️ Redo (Ctrl+X)</button></div>
+            <button class="sec" style="padding:5px; margin-top:2px;" onclick="toggleG()">🌐 Grid Mesh</button>
+        </div>
+        <div class="group">
+            <h3>Zoom View</h3>
+            <div class="grid2"><button class="sec" onclick="zIn()">➕ Zoom In</button><button class="sec" onclick="zOut()">➖ Zoom Out</button></div>
+            <button class="sec" onclick="zReset()">🎯 Reset View</button>
+        </div>
+        <div class="group">
+            <h3>Color Swatches</h3>
+            <div style="display:flex; gap:10px; align-items:center;"><input type="color" id="cPick" value="#ff3366"><div style="font-size:12px; font-weight:bold;" id="hDisp">#FF3366</div></div>
+            <button class="sec" style="margin-top:2px;" onclick="saveC()">➕ Save Color</button>
+            <div class="palette" id="pGrid"></div>
+        </div>
+        <div class="group" style="margin-top:auto;"><button onclick="exportPNG()">💾 Export PNG</button></div>
+    </div>
+    <div class="viewport"><div class="canvas-card" id="cCard"><canvas id="pCanvas"></canvas></div></div>
+    <script>
+        let RES = 100, tool = 'draw', symMode = 'none', drawing = false, showGrid = true, last = null, scale = 1.0, brushSize = 1;
+        let grid = [], uStack = [], rStack = [];
+        let hoverPos = null, startShapePos = null;
+
+        const canvas = document.getElementById('pCanvas'), ctx = canvas.getContext('2d'), card = document.getElementById('cCard');
+        const cPick = document.getElementById('cPick'), hDisp = document.getElementById('hDisp'), pGrid = document.getElementById('pGrid');
+        const sizeInput = document.getElementById('brushSizeInput'), sizeLabel = document.getElementById('sizeLabel');
+        const colors = ['#ff3366', '#ff9933', '#ffff33', '#33cc66', '#3399ff', '#9933ff', '#ffffff', '#000000'];
+
+        function init() {
+            pGrid.innerHTML = ''; colors.forEach(c => makeSwatch(c));
+            canvas.addEventListener('mousedown', MathDown);
+            window.addEventListener('mousemove', MathMove);
+            window.addEventListener('mouseup', MathUp);
+            canvas.addEventListener('mouseleave', () => { hoverPos = null; redraw(); });
+            cPick.addEventListener('input', (e) => hDisp.textContent = e.target.value.toUpperCase());
+            
+            document.querySelector('.viewport').addEventListener('wheel', (e) => {
+                if (e.ctrlKey) { e.preventDefault(); if (e.deltaY < 0) zIn(); else zOut(); }
+            }, { passive: false });
+
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+                    if (e.key.toLowerCase() === 'x') { e.preventDefault(); redo(); }
+                }
+            });
+            
+            setupCanvas(100);
+        }
+        function setupCanvas(amt) {
+            RES = amt; canvas.width = RES; canvas.height = RES;
+            grid = []; for (let i = 0; i < RES; i++) grid[i] = new Array(RES).fill(null);
+            uStack = []; rStack = []; redraw();
+        }
+        function changeRes() {
+            const v = parseInt(document.getElementById('gIn').value);
+            if (v >= 10 && v <= 500) setupCanvas(v);
+        }
+        function setT(t) { tool = t; ['draw','erase','bucket','picker','circle','rect'].forEach(x => document.getElementById(`b-${x}`).classList.toggle('active', x===t)); redraw(); }
+        
+        function setSym(s) { 
+            symMode = s; 
+            ['none','vert','horiz','both'].forEach(x => document.getElementById(`b-sym-${x}`).classList.toggle('active', x===s)); 
+            redraw(); 
+        }
+        
+        function getCoords(e) {
+            const r = canvas.getBoundingClientRect();
+            return { x: Math.floor(((e.clientX - r.left) / r.width) * RES), y: Math.floor(((e.clientY - r.top) / r.height) * RES) };
+        }
+        function updateBrushSizeLabel() { brushSize = parseInt(sizeInput.value); sizeLabel.textContent = `Brush/Eraser Size: ${brushSize}px`; redraw(); }
+        function MathDown(e) {
+            const c = getCoords(e); if (c.x < 0 || c.x >= RES || c.y < 0 || c.y >= RES) return;
+            if (tool === 'bucket') { save(); flood(c.x, c.y, cPick.value); redraw(); return; }
+            if (tool === 'picker') { if (grid[c.x][c.y]) { cPick.value = grid[c.x][c.y]; hDisp.textContent = cPick.value.toUpperCase(); } setT('draw'); return; }
+            save(); drawing = true; 
+            if (tool === 'circle' || tool === 'rect') { startShapePos = c; } else { last = c; paintWithSymmetry(c.x, c.y); }
+            redraw();
+        }
+        function MathMove(e) {
+            const c = getCoords(e);
+            if (c.x >= 0 && c.x < RES && c.y >= 0 && c.y < RES) { hoverPos = c; } else { hoverPos = null; }
+            if (!drawing) { redraw(); return; }
+            if (c.x < 0 || c.x >= RES || c.y < 0 || c.y >= RES) return;
+            if (tool !== 'circle' && tool !== 'rect') {
+                if (last) {
+                    let x0 = last.x, y0 = last.y, x1 = c.x, y1 = c.y;
+                    let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, err = (dx > dy ? dx : -dy) / 2, e2;
+                    while (true) { paintWithSymmetry(x0, y0); if (x0 === x1 && y0 === y1) break; e2 = err; if (e2 > -dx) { err -= dy; x0 += sx; } if (e2 < dy) { err += dx; y0 += sy; } }
+                } else { paintWithSymmetry(c.x, c.y); }
+                last = c;
+            }
+            redraw();
+        }
+        function MathUp(e) {
+            if (!drawing) return; const c = getCoords(e);
+            if ((tool === 'circle' || tool === 'rect') && startShapePos) { generateShapeVector(startShapePos, c, colorInterfaceDrawRoutine); }
+            drawing = false; last = null; startShapePos = null; redraw();
+        }
+        function paintWithSymmetry(cx, cy) {
+            // Apply brush matrix around core coordinates first
+            applyBrushStroke(cx, cy);
+            
+            // Mirror calculations across coordinates matrix limits
+            if (symMode === 'vert' || symMode === 'both') {
+                applyBrushStroke(RES - 1 - cx, cy);
+            }
+            if (symMode === 'horiz' || symMode === 'both') {
+                applyBrushStroke(cx, RES - 1 - cy);
+            }
+            if (symMode === 'both') {
+                applyBrushStroke(RES - 1 - cx, RES - 1 - cy);
+            }
+        }
+        function applyBrushStroke(cx, cy) {
+            let offset = Math.floor(brushSize / 2);
+            for (let x = 0; x < brushSize; x++) {
+                for (let y = 0; y < brushSize; y++) {
+                    let px = cx + x - offset, py = cy + y - offset;
+                    if (px >= 0 && px < RES && py >= 0 && py < RES) { grid[px][py] = (tool === 'draw') ? cPick.value : null; }
+                }
+            }
+        }
+        function colorInterfaceDrawRoutine(x, y) {
+            paintWithSymmetry(x, y);
+        }
+        function generateShapeVector(start, current, action) {
+            if (tool === 'rect') {
+                let x0 = Math.min(start.x, current.x), x1 = Math.max(start.x, current.x);
+                let y0 = Math.min(start.y, current.y), y1 = Math.max(start.y, current.y);
+                for (let x = x0; x <= x1; x++) { action(x, y0); action(x, y1); }
+                for (let y = y0; y <= y1; y++) { action(x0, y); action(x1, y); }
+            } else if (tool === 'circle') {
+                let r = Math.round(Math.sqrt(Math.pow(current.x - start.x, 2) + Math.pow(current.y - start.y, 2)));
+                let x = r, y = 0, dx = 1, dy = 1, err = dx - (r << 1);
+                while (x >= y) {
+                    action(start.x + x, start.y + y); action(start.x + y, start.y + x); action(start.x - y, start.y + x); action(start.x - x, start.y + y);
+                    action(start.x - x, start.y - y); action(start.x - y, start.y - x); action(start.x + y, start.y - x); action(start.x + x, start.y - x);
+                    if (err <= 0) { y++; err += dy; dy += 2; } else { x--; dx += 2; err += dx - (r << 1); }
+                }
+            }
+        }
+        function redraw() {
+            ctx.clearRect(0, 0, RES, RES);
+            for (let x = 0; x < RES; x++) { for (let y = 0; y < RES; y++) { if (grid[x][y]) { ctx.fillStyle = grid[x][y]; ctx.fillRect(x, y, 1, 1); } } }
+            
+            // Translucent Drag Shape Overlay with Mirror Symmetry Previewing
+            if (drawing && (tool === 'circle' || tool === 'rect') && startShapePos && hoverPos) {
+                ctx.save(); ctx.fillStyle = "rgba(88, 166, 255, 0.4)";
+                generateShapeVector(startShapePos, hoverPos, (x, y) => {
+                    ctx.fillRect(x, y, 1, 1);
+                    if (symMode === 'vert' || symMode === 'both') ctx.fillRect(RES - 1 - x, y, 1, 1);
+                    if (symMode === 'horiz' || symMode === 'both') ctx.fillRect(x, RES - 1 - y, 1, 1);
+                    if (symMode === 'both') ctx.fillRect(RES - 1 - x, RES - 1 - y, 1, 1);
+                });
+                ctx.restore();
+            }
+            
+            // Translucent brush square preview marker with Mirror Symmetry Previewing
+            if (!drawing && hoverPos && (tool === 'draw' || tool === 'erase')) {
+                let offset = Math.floor(brushSize / 2); ctx.save();
+                ctx.fillStyle = tool === 'draw' ? "rgba(88, 166, 255, 0.35)" : "rgba(218, 54, 55, 0.4)";
+                
+                const renderBox = (cx, cy) => ctx.fillRect(cx - offset, cy - offset, brushSize, brushSize);
+                renderBox(hoverPos.x, hoverPos.y);
+                if (symMode === 'vert' || symMode === 'both') renderBox(RES - 1 - hoverPos.x, hoverPos.y);
+                if (symMode === 'horiz' || symMode === 'both') renderBox(hoverPos.x, RES - 1 - hoverPos.y);
+                if (symMode === 'both') renderBox(RES - 1 - hoverPos.x, RES - 1 - hoverPos.y);
+                ctx.restore();
+            }
+            
+            if (showGrid) {
+                ctx.strokeStyle = "rgba(128,128,128,0.2)"; ctx.lineWidth = 0.08;
+                for (let i = 0; i <= RES; i++) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, RES); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(RES, i); ctx.stroke(); }
+            }
+        }
+        function flood(startX, startY, fill) {
+            const target = grid[startX][startY]; if (target === fill) return; const q = [[startX, startY]];
+            while (q.length > 0) {
+                const [cx, cy] = q.shift();
+                if (cx >= 0 && cx < RES && cy >= 0 && cy < RES && grid[cx][cy] === target) { grid[cx][cy] = fill; q.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]); }
+            }
+        }
+        function save() { rStack = []; uStack.push(grid.map(a => [...a])); if (uStack.length > 20) uStack.shift(); }
+        function undo() { if (uStack.length > 0) { rStack.push(grid.map(a => [...a])); grid = uStack.pop(); redraw(); } }
+        function redo() { if (rStack.length > 0) { uStack.push(grid.map(a => [...a])); grid = rStack.pop(); redraw(); } }
+        function toggleG() { showGrid = !showGrid; redraw(); }
+        function zIn() { scale = Math.min(scale + 0.2, 4.0); card.style.transform = `scale(${scale})`; }
+        function zOut() { scale = Math.max(scale - 0.2, 0.4); card.style.transform = `scale(${scale})`; }
+        function zReset() { scale = 1.0; card.style.transform = `scale(1)`; }
+        function makeSwatch(c) { const s = document.createElement('div'); s.className = 'swatch'; s.style.backgroundColor = c; s.onclick = () => { cPick.value = c; hDisp.textContent = c.toUpperCase(); }; pGrid.appendChild(s); }
+        function saveC() { makeSwatch(cPick.value); }
+        function exportPNG() {
+            const eCanvas = document.createElement('canvas'); eCanvas.width = RES; eCanvas.height = RES; const eCtx = eCanvas.getContext('2d');
+            for (let x = 0; x < RES; x++) { for (let y = 0; y < RES; y++) { if (grid[x][y]) { eCtx.fillStyle = grid[x][y]; eCtx.fillRect(x, y, 1, 1); } } }
+            const l = document.createElement('a'); l.download = 'pixelart.png'; l.href = eCanvas.toDataURL(); l.click();
+        }
+        init();
+    </script>
+</body>
+</html>
+ 
